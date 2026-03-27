@@ -1,23 +1,36 @@
 {
-  "name": "kubb-plugin-nextjs-routes",
+  "name": "nextjs-openapi-codegen",
   "version": "1.0.0",
-  "description": "Kubb plugin to generate Next.js API routes and frontend services from OpenAPI specs",
+  "description": "CLI to generate Next.js API route handlers, typed frontend services, apiClient and fetchBackend from any OpenAPI/Swagger spec",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
+  "bin": {
+    "nextjs-codegen": "./bin/cli.mjs"
+  },
   "files": [
-    "dist"
+    "dist",
+    "bin"
   ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch"
   },
-  "dependencies": {
-    "@kubb/core": "^4.35.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "typescript": "^5.0.0",
     "tsup": "^8.0.0",
     "@types/node": "^20.0.0"
-  }
+  },
+  "keywords": [
+    "nextjs",
+    "openapi",
+    "swagger",
+    "codegen",
+    "cli",
+    "routes",
+    "services",
+    "typescript"
+  ],
+  "license": "MIT"
 }
