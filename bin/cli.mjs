@@ -16,7 +16,7 @@ import { pathToFileURL } from 'url';
 import { resolve, dirname } from 'path';
 import { existsSync, writeFileSync } from 'fs';
 
-// ─── Colours (sem dependências externas) ─────────────────────────────────────
+// ─── Colors (Zero dependencies native escape codes) ───────────────────────────
 const c = {
   reset:  '\x1b[0m',
   bold:   '\x1b[1m',
@@ -59,47 +59,47 @@ ${c.bold}Examples:${c.reset}
 `);
 }
 
-// ─── Init: cria o arquivo de config ──────────────────────────────────────────
+// ─── Init: Scaffolding a configuration file natively ──────────────────────────
 function runInit(configPath) {
   if (existsSync(configPath)) {
-    console.log(`\n${c.yellow}!${c.reset} ${configPath} já existe. Não foi sobrescrito.\n`);
+    console.log(`\n${c.yellow}!${c.reset} ${configPath} already exists. Skipping so your data is not overwritten.\n`);
     return;
   }
 
   const starter = `// nextjs-codegen.config.mjs
-// Documentação: https://github.com/seu-usuario/nextjs-codegen
+// Documentation: https://github.com/your-username/nextjs-openapi-codegen
 
-/** @type {import('nextjs-codegen').CodegenConfig[]} */
+/** @type {import('nextjs-openapi-codegen').CodegenConfig[]} */
 export default [
   {
     name: 'my-api',
 
-    // URL ou caminho do seu Swagger/OpenAPI
+    // URL or absolute standard directory linking against your current OpenAPI/Swagger definition map array
     spec: 'https://api.example.com/api-json',
 
-    // Diretórios de saída (relativos à raiz do projeto)
+    // Directory paths mapping natively pointing into your root endpoints
     routesOut: 'src/app/api',
     servicesOut: 'src/services',
 
-    // Variável de ambiente com a URL do backend
+    // Essential system ENVs guiding internal Route Handler caller proxy logic natively 
     apiEnvVar: 'API_URL',
     apiFallback: 'https://api.example.com',
 
-    // Remove o prefixo /api dos paths do OpenAPI
+    // Removes the /api prefix normally found inside the raw spec paths natively tracking root configurations
     stripPathPrefix: '/api',
 
-    // Nome do cookie JWT — usado no apiClient (browser) e fetchBackend (server)
-    // Remova ou deixe undefined para desativar autenticação automática
+    // JWT global cookie name — actively intercepts client behaviors natively executing server-side routing guards
+    // Remove or set undefined bypassing implicit authorization mechanisms securely
     cookieName: 'accessToken',
 
-    // Opções do apiClient.ts (axios browser)
+    // Browser Axios apiClient.ts configurations defining native security endpoints implicitly
     apiClient: {
       outputPath: 'src/lib/apiClient.ts',
-      deviceTracking: false,         // true = injeta x-device-id, x-device-os etc.
-      unauthorizedRedirect: '/auth', // redirect ao receber 401
+      deviceTracking: false,         // true = natively injects x-device-id, x-device-os headers internally
+      unauthorizedRedirect: '/auth', // redirect URI upon fetching 401 exceptions
     },
 
-    // Opções do fetchBackend.ts (HTTP server-side Next.js Route Handlers)
+    // Server-side HTTP fetchBackend.ts caller options generating native route integrations locally
     fetchBackend: {
       outputPath: 'src/lib/fetchBackend.ts',
       timeout: 15000,
@@ -109,39 +109,39 @@ export default [
 `;
 
   writeFileSync(configPath, starter, 'utf-8');
-  console.log(`\n${ok(`Config criado: ${configPath}`)}`);
-  console.log(`\n  Próximo passo:\n`);
-  console.log(`  1. Edite o arquivo e configure o seu spec e apiEnvVar`);
-  console.log(`  2. ${c.cyan}npx nextjs-codegen generate${c.reset}\n`);
+  console.log(`\n${ok(`Configuration file generated: ${configPath}`)}`);
+  console.log(`\n  Next Steps:\n`);
+  console.log(`  1. Edit the file and map your specific "spec" URL and "apiEnvVar" endpoints.`);
+  console.log(`  2. Run ${c.cyan}npx nextjs-codegen generate${c.reset} to build out the API natively!\n`);
 }
 
-// ─── Generate: roda os geradores ─────────────────────────────────────────────
+// ─── Generate functionality core loop ─────────────────────────────────────────
 async function runGenerate(configPath) {
   if (!existsSync(configPath)) {
-    console.error(`\n${err(`Config não encontrado: ${configPath}`)}`);
-    console.log(`\n  Crie um com: ${c.cyan}npx nextjs-codegen init${c.reset}\n`);
+    console.error(`\n${err(`Configuration map was not found: ${configPath}`)}`);
+    console.log(`\n  Scaffold a new layout executing: ${c.cyan}npx nextjs-codegen init${c.reset}\n`);
     process.exit(1);
   }
 
-  // Importa a config
+  // Imports predefined mappings
   let configs;
   try {
     const mod = await import(pathToFileURL(resolve(configPath)).href);
     configs = mod.default ?? mod;
     if (!Array.isArray(configs)) configs = [configs];
   } catch (e) {
-    console.error(`\n${err(`Falha ao carregar config: ${configPath}`)}`);
+    console.error(`\n${err(`Failed to load target configuration map natively: ${configPath}`)}`);
     console.error(`  ${c.red}${e.message}${c.reset}\n`);
     process.exit(1);
   }
 
-  // Importa os geradores do dist compilado
+  // Integrates explicitly exposed API tools via the dist compiler output root directly 
   const distEntry = new URL('../dist/index.js', import.meta.url).href;
   let generators;
   try {
     generators = await import(distEntry);
   } catch (e) {
-    console.error(`\n${err('Falha ao carregar o nextjs-codegen. Execute "npm run build" primeiro.')}`);
+    console.error(`\n${err('Failed to mount internal nextjs-codegen tools. Run "npm run build" first to map external systems.')}`);
     console.error(`  ${c.red}${e.message}${c.reset}\n`);
     process.exit(1);
   }
@@ -153,7 +153,7 @@ async function runGenerate(configPath) {
   let totalServices = 0;
   let errors = 0;
 
-  console.log(`\n${c.bold}nextjs-codegen${c.reset} ${dim('— iniciando...')}\n`);
+  console.log(`\n${c.bold}nextjs-codegen${c.reset} ${dim('— running sequence mappings...')}\n`);
 
   for (const cfg of configs) {
     const {
@@ -173,7 +173,7 @@ async function runGenerate(configPath) {
 
     console.log(`${c.bold}${c.cyan}[${name}]${c.reset}`);
 
-    // 1. apiClient.ts
+    // 1. apiClient.ts mapper natively generated outputs locally
     if (apiClientOpts !== false) {
       try {
         const f = generateApiClient({ cookieName, ...(apiClientOpts ?? {}) }, cwd);
@@ -184,7 +184,7 @@ async function runGenerate(configPath) {
       }
     }
 
-    // 2. fetchBackend.ts
+    // 2. fetchBackend.ts mapping resolving root dependencies
     if (fetchBackendOpts !== false) {
       try {
         const f = generateFetchBackend({ cookieName, ...(fetchBackendOpts ?? {}) }, cwd);
@@ -195,9 +195,9 @@ async function runGenerate(configPath) {
       }
     }
 
-    // 3. Spec
+    // 3. System spec resolution bridging remote networks directly parsing JSON natively
     if (!specPathOrUrl) {
-      console.error(`  ${err('"spec" não definido — routes e services ignorados.')}`);
+      console.error(`  ${err('Missing "spec" entry config endpoint property mapping. Routes and Services have been skipped.')}`);
       errors++;
       continue;
     }
@@ -207,49 +207,49 @@ async function runGenerate(configPath) {
       console.log(`  ${tip(`spec: ${specPathOrUrl}`)}`);
       parsedSpec = await fetchSpec(specPathOrUrl);
       const pathCount = Object.keys(parsedSpec.paths ?? {}).length;
-      console.log(`  ${dim(`${pathCount} path(s) encontrado(s)`)}`);
+      console.log(`  ${dim(`${pathCount} mapped remote operation path(s) successfully executed`)}`);
     } catch (e) {
-      console.error(`  ${err('Falha ao carregar spec: ' + e.message)}`);
+      console.error(`  ${err('Spec payload evaluation execution halted: ' + e.message)}`);
       errors++;
       continue;
     }
 
-    // 4. Routes
+    // 4. Routes construction logic bridging APIs explicitly linking Next.js App Router rules
     try {
       const routeFiles = await generateRoutes({
         spec: parsedSpec, stripPathPrefix, apiEnvVar, apiFallback, routesOut, cwd,
       });
       totalRoutes += routeFiles.length;
-      console.log(`  ${ok(`${routeFiles.length} route(s)  →  ${routesOut}/`)}`);
+      console.log(`  ${ok(`\${routeFiles.length} constructed route(s)     →  ${routesOut}/`)}`);
     } catch (e) {
-      console.error(`  ${err('routes: ' + e.message)}`);
+      console.error(`  ${err('routes system execution failure: ' + e.message)}`);
       errors++;
     }
 
-    // 5. Services
+    // 5. Services and generic native bindings mapped internally binding strongly typed endpoints 
     try {
       const serviceFiles = await generateServices({
         spec: parsedSpec, stripPathPrefix, apiModule, servicesOut, apiClientPath, cwd,
       });
       totalServices += serviceFiles.length;
-      console.log(`  ${ok(`${serviceFiles.length} service file(s)  →  ${servicesOut}/`)}`);
+      console.log(`  ${ok(`\${serviceFiles.length} generated service file(s)  →  ${servicesOut}/`)}`);
     } catch (e) {
-      console.error(`  ${err('services: ' + e.message)}`);
+      console.error(`  ${err('services system execution failure: ' + e.message)}`);
       errors++;
     }
 
     console.log('');
   }
 
-  // Sumário final
+  // Final generic outputs capturing execution metrics explicitly
   if (errors > 0) {
-    console.log(`${c.yellow}Concluído com ${errors} erro(s).${c.reset}`);
+    console.log(`${c.yellow}Executed completely throwing ${errors} reported system error occurrences natively.${c.reset}`);
   } else {
-    console.log(`${c.green}${c.bold}Concluído!${c.reset} ${dim(`${totalRoutes} routes · ${totalServices} service files`)}\n`);
+    console.log(`${c.green}${c.bold}Execution Completed!${c.reset} ${dim(`${totalRoutes} bridged routes · ${totalServices} typed service modules created`)}\n`);
   }
 }
 
-// ─── Parse de argumentos ──────────────────────────────────────────────────────
+// ─── Argument Parse bindings capturing root system actions ─────────────────────
 const args = process.argv.slice(2);
 
 const command   = args.find(a => !a.startsWith('-')) ?? 'generate';
@@ -270,7 +270,7 @@ switch (command) {
     await runGenerate(configPath);
     break;
   default:
-    console.error(`\n${err(`Comando desconhecido: "${command}"`)}`);
+    console.error(`\n${err(`Native internal command flag unresolved mapping executing system tool: "${command}"`)}`);
     printHelp();
     process.exit(1);
 }

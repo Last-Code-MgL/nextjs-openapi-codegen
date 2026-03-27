@@ -1,17 +1,17 @@
 /**
- * nextjs-codegen — API pública
+ * nextjs-openapi-codegen — Public API
  *
- * Exporta os geradores para uso programático direto,
- * sem nenhuma dependência do Kubb ou outro framework.
+ * Exports standalone generators for programmatic logic and execution.
+ * Entirely decoupled from generic wrappers like Kubb or large frontend toolings.
  */
 
-// ─── Geradores ───────────────────────────────────────────────────────────────
+// ─── Generators ───────────────────────────────────────────────────────────────
 export { generateRoutes } from './generateRoutes.js';
 export { generateServices } from './generateServices.js';
 export { generateApiClient } from './generateApiClient.js';
 export { generateFetchBackend } from './generateFetchBackend.js';
 
-// ─── Utilitários ─────────────────────────────────────────────────────────────
+// ─── Utilities ─────────────────────────────────────────────────────────────
 export {
   fetchSpec,
   extractOperations,
@@ -22,94 +22,94 @@ export {
   getSuccessResponseSchema,
 } from './utils.js';
 
-// ─── Tipos públicos ───────────────────────────────────────────────────────────
+// ─── Public Types ───────────────────────────────────────────────────────────
 export type { GenerateApiClientOptions } from './generateApiClient.js';
 export type { GenerateFetchBackendOptions } from './generateFetchBackend.js';
 
-/** Configuração de uma entrada no nextjs-codegen.config.mjs */
+/** Configuration entry schema representing a nextjs-codegen.config.mjs map */
 export interface CodegenConfig {
-  /** Identificador desta entrada (ex: 'core', 'payments') */
+  /** Identifier name (e.g., 'core', 'payments') */
   name?: string;
 
   /**
-   * URL ou caminho local para o spec OpenAPI/Swagger.
+   * Remote URL endpoint or local path directory parsing the OpenAPI/Swagger JSON struct.
    * @example 'https://api.example.com/api-json'
    * @example './openapi.json'
    */
   spec: string;
 
   /**
-   * Diretório de saída para os Route Handlers do Next.js.
+   * Output directory where the Next.js Route Handlers are bridged.
    * @default 'src/app/api'
    */
   routesOut?: string;
 
   /**
-   * Diretório de saída para os services frontend tipados.
+   * Output directory where the strongly typed frontend services are placed.
    * @default 'src/services'
    */
   servicesOut?: string;
 
   /**
-   * Caminho de import do apiClient nos services gerados.
+   * Import path the generated service files use to inject the custom HTTP apiClient payload.
    * @default '@/lib/apiClient'
    */
   apiClientPath?: string;
 
   /**
-   * Nome da variável de ambiente que contém a URL do backend.
+   * Name of the environment variable used on the internal server calls dictating backend URL paths.
    * @example 'CORE_API_URL'
    * @default 'API_URL'
    */
   apiEnvVar?: string;
 
   /**
-   * URL de fallback se a variável de ambiente não estiver definida.
+   * Statically assigned fallback URL if the env var above evaluates false.
    * @example 'https://api.example.com'
    */
   apiFallback?: string;
 
   /**
-   * Prefixo do path do OpenAPI a ser removido antes de criar os routes.
-   * Evita gerar src/app/api/api/users.
+   * Reusable path prefix to strip from the OpenAPI schema before creating the routes logic endpoints.
+   * Prevents creating weird nesting like `src/app/api/api/users`.
    * @default '/api'
    */
   stripPathPrefix?: string;
 
   /**
-   * Nome do cookie que contém o JWT.
-   * - apiClient.ts: lê via js-cookie e envia como Bearer
-   * - fetchBackend.ts: lê via next/headers e propaga server-side
-   * Se não definido, nenhuma auth automática é adicionada.
+   * JWT cookie configuration token literal string.
+   * - apiClient.ts: intercepts using js-cookie and mounts as Bearer.
+   * - fetchBackend.ts: interprets through next/headers and propagates it inside the API network server-side.
+   * If unset, no implicit automated authentication guards are mounted natively.
    * @example 'accessToken'
    */
   cookieName?: string;
 
   /**
-   * Opções para geração do apiClient.ts (cliente axios browser).
-   * Passe `false` para não gerar este arquivo.
+   * Configuration map bridging the apiClient.ts generation rules (browser bound).
+   * Skip generation altogether mapping this property strictly boolean `false`.
    */
   apiClient?: false | {
-    /** Caminho de saída @default 'src/lib/apiClient.ts' */
+    /** Output path relative directory @default 'src/lib/apiClient.ts' */
     outputPath?: string;
-    /** Sobrescreve o cookieName global só para este arquivo */
+    /** Overrides the global cookieName exclusively localized to this particular generated script */
     cookieName?: string;
-    /** Injeta headers de device tracking (deviceId, OS, browser) @default false */
+    /** Injects security tracker fingerprint objects natively capturing (deviceId, OS, browser payload identifiers) @default false */
     deviceTracking?: boolean;
-    /** Redirect ao receber 401 @default '/auth' */
+    /** Eager internal redirect endpoint whenever the system invokes 401 exceptions @default '/auth' */
     unauthorizedRedirect?: string;
   };
 
   /**
-   * Opções para geração do fetchBackend.ts (cliente HTTP server-side).
-   * Passe `false` para não gerar este arquivo.
+   * Configuration map bridging the fetchBackend.ts generation rules (server-side bound route caller tools).
+   * Skip generation altogether mapping this property strictly boolean `false`.
    */
   fetchBackend?: false | {
-    /** Caminho de saída @default 'src/lib/fetchBackend.ts' */
+    /** Output path relative directory @default 'src/lib/fetchBackend.ts' */
     outputPath?: string;
-    /** Sobrescreve o cookieName global só para este arquivo */
+    /** Overrides the global cookieName exclusively localized to this particular generated script */
     cookieName?: string;
-    /** Timeout em ms @default 15000 */
+    /** Maximum runtime timeout resolving backend queries natively @default 15000 (ms) */
     timeout?: number;
   };
 }

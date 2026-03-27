@@ -1,14 +1,16 @@
 // ─── Path helpers ─────────────────────────────────────────────────────────────
 
 /**
- * /admin/users/{id} → /admin/users/[id]
+ * Transforms an OpenAPI path to a Next.js dynamic routing path.
+ * e.g., /admin/users/{id} → /admin/users/[id]
  */
 export function toNextPath(openApiPath: string) {
   return openApiPath.replace(/\{(\w+)\}/g, '[$1]');
 }
 
 /**
- * /admin/users/{id} → ['id']
+ * Extracts path parameters from an OpenAPI path.
+ * e.g., /admin/users/{id} → ['id']
  */
 export function getPathParams(openApiPath: string) {
   return [...openApiPath.matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
@@ -17,8 +19,8 @@ export function getPathParams(openApiPath: string) {
 // ─── Tag / slug helpers ───────────────────────────────────────────────────────
 
 /**
- * Normaliza uma tag para slug kebab-case limpo (sem emojis, sem chars especiais).
- * "⚙️Dev — EmailTests"  → "dev-email-tests"
+ * Normalizes a tag string into a clean kebab-case slug (stripping emojis, special chars).
+ * e.g., "⚙️Dev — EmailTests" → "dev-email-tests"
  */
 export function slugifyTag(tag: string) {
   return (
@@ -47,8 +49,9 @@ export function tagToVarName(tag: string) {
 // ─── OperationId helpers ──────────────────────────────────────────────────────
 
 /**
- * adminControllerListUsers → listUsers
- * AuthController_login     → login
+ * Slices off standard NestJS/Spring controller naming conventions for cleaner method names.
+ * e.g., adminControllerListUsers → listUsers
+ * e.g., AuthController_login     → login
  */
 export function operationIdToMethodName(operationId: string) {
   const withoutController = operationId.replace(/^.+Controller_?/, '');
@@ -57,12 +60,12 @@ export function operationIdToMethodName(operationId: string) {
   return clean.charAt(0).toLowerCase() + clean.slice(1);
 }
 
-// ─── Spec fetch ───────────────────────────────────────────────────────────────
+// ─── Spec fetching ───────────────────────────────────────────────────────────────
 
 export async function fetchSpec(pathOrUrl: string) {
   if (pathOrUrl.startsWith('http')) {
     const res = await fetch(pathOrUrl);
-    if (!res.ok) throw new Error(`Falha ao buscar spec: ${pathOrUrl} (${res.status})`);
+    if (!res.ok) throw new Error(`Failed to fetch spec: ${pathOrUrl} (${res.status})`);
     return res.json();
   }
   const { readFileSync } = await import('fs');
@@ -72,30 +75,30 @@ export async function fetchSpec(pathOrUrl: string) {
 // ─── Safe schema helpers ──────────────────────────────────────────────────────
 
 /**
- * Resolve um $ref local com limite de profundidade para evitar ciclos.
+ * Resolves a local OpenAPI $ref with built-in depth limits to prevent cyclic crashes.
  */
 export function resolveRef(ref: string, spec: any, depth = 0): any {
-  if (depth > 10) return null; // guard anti-loop
+  if (depth > 10) return null; // Guardian against infinite loops
   const parts = ref.replace(/^#\//, '').split('/');
   let obj = spec;
   for (const p of parts) obj = obj?.[decodeURIComponent(p)];
   if (!obj) return null;
-  // Se o resultado resolvido é ele mesmo um $ref, resolve recursivamente
+  // Deep-resolve nested $refs
   if (obj.$ref) return resolveRef(obj.$ref, spec, depth + 1);
   return obj;
 }
 
 /**
- * Extrai o nome de tipo de um $ref.
- * "#/components/schemas/LoginDto" → "LoginDto"
+ * Extracts the raw type or component name from a schema $ref.
+ * e.g., "#/components/schemas/LoginDto" → "LoginDto"
  */
 export function refName(ref: string): string {
   return ref.split('/').pop() ?? 'unknown';
 }
 
 /**
- * Detecta se um schema OpenAPI 3.1 declara nullable via array de tipos.
- * { type: ['string', 'null'] } → true
+ * Detects if an OpenAPI 3.1 schema utilizes an array format to declare nullability.
+ * e.g., { type: ['string', 'null'] } → true
  */
 export function isNullable(schema: any): boolean {
   if (schema.nullable) return true;
@@ -104,8 +107,8 @@ export function isNullable(schema: any): boolean {
 }
 
 /**
- * Extrai o tipo primário de um campo 3.1 multi-type.
- * { type: ['string', 'null'] } → 'string'
+ * Extracts the primary logical typing of a 3.1 multi-type array property.
+ * e.g., { type: ['string', 'null'] } → 'string'
  */
 export function primaryType(schema: any): string | undefined {
   if (Array.isArray(schema.type)) {
@@ -117,16 +120,8 @@ export function primaryType(schema: any): string | undefined {
 // ─── Operation extraction ─────────────────────────────────────────────────────
 
 /**
- * Retorna todas as operações do spec no formato normalizado.
- *
- * Melhorias vs versão original:
- * - Herda `parameters` definidos no path-level (parâmetros compartilhados)
- * - Deduplica operationIds colisionados (acrescenta sufixo numérico)
- * - Ignora paths e métodos sem operationId silenciosamente
- */
-/**
- * Retorna o primeiro content-type definido no requestBody de uma operação.
- * Ex: 'application/json' | 'multipart/form-data' | undefined
+ * Grabs the initial content-type defined within an operation's requestBody.
+ * e.g., 'application/json' | 'multipart/form-data' | undefined
  */
 export function getBodyContentType(operation: any): string | undefined {
   const content = operation?.requestBody?.content ?? {};
@@ -134,11 +129,10 @@ export function getBodyContentType(operation: any): string | undefined {
 }
 
 /**
- * Busca o schema de resposta de sucesso (qualquer 2xx ou wildcard '2XX').
- * Mais robusto que checar apenas 200/201/202/204.
+ * Identifies the successful underlying response schema (ranging through 2xx or literal '2XX' wildcard outputs).
+ * Far more robust than hardcoding check against 200/201/204.
  */
 export function getSuccessResponseSchema(responses: Record<string, any>): any {
-  // Tenta por código exato na faixa 2xx
   for (const [code, response] of Object.entries(responses)) {
     const numCode = parseInt(code, 10);
     const is2xx = (!isNaN(numCode) && numCode >= 200 && numCode < 300)
@@ -154,6 +148,14 @@ export function getSuccessResponseSchema(responses: Record<string, any>): any {
   return null;
 }
 
+/**
+ * Scans the full parsed OpenAPI specification and returns normalized operations.
+ *
+ * It specifically solves:
+ * - Inheriting variables mapped at the root route/path level parameters
+ * - Deduplicating identical/overlapping operationIds internally
+ * - Ignoring nested empty endpoints safely
+ */
 export function extractOperations(spec: any, { stripPathPrefix = '' } = {}) {
   const ops: any[] = [];
   const seenIds = new Map<string, number>();
@@ -165,10 +167,9 @@ export function extractOperations(spec: any, { stripPathPrefix = '' } = {}) {
       path = path.slice(stripPathPrefix.length) || '/';
     }
 
-    // Ignora o path raiz '/' — evitaria interceptar todas as rotas
+    // Skips standard root endpoints to avoid hijacking the core app layer silently
     if (path === '/') continue;
 
-    // Parâmetros definidos no nível do path (compartilhados por todos os métodos)
     const pathLevelParams: any[] = pathItem.parameters ?? [];
 
     for (const [method, operation] of Object.entries(pathItem)) {
@@ -178,14 +179,14 @@ export function extractOperations(spec: any, { stripPathPrefix = '' } = {}) {
 
       const op = operation as any;
 
-      // Merge params: path-level + operation-level (operation vence em conflito de nome)
+      // Unify parameters tracking overlaps gracefully
       const opParamNames = new Set((op.parameters ?? []).map((p: any) => p.name));
       const mergedParams = [
         ...pathLevelParams.filter((p: any) => !opParamNames.has(p.name)),
         ...(op.parameters ?? []),
       ];
 
-      // Deduplica operationId
+      // Automatically suffix identical duplicate operational ids found on complex APIs
       let opId: string = op.operationId;
       if (seenIds.has(opId)) {
         const count = seenIds.get(opId)! + 1;
@@ -211,7 +212,7 @@ export function extractOperations(spec: any, { stripPathPrefix = '' } = {}) {
         bodyContentType,   // 'application/json' | 'multipart/form-data' | undefined
         tags,
         summary: op.summary ?? '',
-        _raw: { ...op, parameters: mergedParams }, // expõe params mergeados
+        _raw: { ...op, parameters: mergedParams },
       });
     }
   }

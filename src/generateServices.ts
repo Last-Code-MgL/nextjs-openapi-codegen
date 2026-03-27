@@ -16,8 +16,8 @@ import {
 // ─── $ref collection ──────────────────────────────────────────────────────────
 
 /**
- * Coleta todos os $refs de um schema em post-order (dependências antes de quem usa).
- * Tem guard de profundidade para evitar loops em specs circulares.
+ * Collects all $refs from a schema in post-order (dependencies first).
+ * Incorporates a depth guard mechanism to prevent infinite loops in circular specifications.
  */
 function collectRefs(
   schema: any,
@@ -56,31 +56,31 @@ function collectRefs(
 // ─── Schema → TypeScript ──────────────────────────────────────────────────────
 
 /**
- * Converte um JSON Schema OpenAPI → string TypeScript.
+ * Converts an OpenAPI JSON Schema into a standalone TypeScript string representation.
  *
- * Suporta:
- * - $ref com guard anti-ciclo
- * - allOf / oneOf / anyOf
- * - nullable via `nullable: true` (OAS 3.0) e `type: ['string','null']` (OAS 3.1)
- * - enums, arrays, objects com propriedades opcionais
- * - additionalProperties
+ * It natively supports:
+ * - $refs with built-in cyclic depth prevention.
+ * - allOf / oneOf / anyOf composition handlers.
+ * - Nullability validation via `nullable: true` (OAS 3.0) and multi-types `['string', 'null']` (OAS 3.1).
+ * - Enums, typed arrays, nested objects, conditional string typing, and property constraints.
+ * - additionalProperties arbitrary mapping (`Record<string, unknown>`).
  */
 function schemaToTs(schema: any, spec: any, indent = 0, visited = new Set<string>()): string {
   if (!schema) return 'unknown';
 
-  // $ref — se já foi visitado nesse branch, evita ciclo com `unknown`
+  // Handling cyclic component references
   if (schema.$ref) {
-    if (visited.has(schema.$ref)) return 'unknown /* circular */';
+    if (visited.has(schema.$ref)) return 'unknown /* circular reference */';
     return refName(schema.$ref);
   }
 
-  const pad   = '  '.repeat(indent);
+  const pad = '  '.repeat(indent);
   const child = '  '.repeat(indent + 1);
   const nullable = isNullable(schema) ? ' | null' : '';
   const type = primaryType(schema) ?? schema.type;
 
-  // allOf: pode ser um wrapper de $ref (ex: { allOf: [{ $ref: '...' }] })
-  // Nesse caso simplificamos para o nome do ref em vez de gerar interseção
+  // allOf might wrap a direct $ref (e.g. { allOf: [{ $ref: '...' }] })
+  // Here we normalize it by dropping intersection if not needed
   if (schema.allOf?.length) {
     if (schema.allOf.length === 1 && schema.allOf[0].$ref) {
       return refName(schema.allOf[0].$ref) + nullable;
@@ -107,11 +107,11 @@ function schemaToTs(schema: any, spec: any, indent = 0, visited = new Set<string
 
   if (type === 'object' || schema.properties) {
     const required = new Set(schema.required ?? []);
-    const entries  = Object.entries(schema.properties ?? {});
+    const entries = Object.entries(schema.properties ?? {});
 
     if (!entries.length) {
       const addProps = schema.additionalProperties;
-      if (addProps === true || addProps == null)  return `Record<string, unknown>${nullable}`;
+      if (addProps === true || addProps == null) return `Record<string, unknown>${nullable}`;
       if (typeof addProps === 'object') {
         const valType = schemaToTs(addProps, spec, indent, new Set(visited));
         return `Record<string, ${valType}>${nullable}`;
@@ -121,8 +121,8 @@ function schemaToTs(schema: any, spec: any, indent = 0, visited = new Set<string
 
     const props = entries.map(([key, s]: [string, any]) => {
       const propType = schemaToTs(s, spec, indent + 1, new Set(visited));
-      const opt      = required.has(key) ? '' : '?';
-      const comment  = s.description ? `\n${child}/** ${s.description} */` : '';
+      const opt = required.has(key) ? '' : '?';
+      const comment = s.description ? `\n${child}/** ${s.description} */` : '';
       return `${comment}\n${child}${key}${opt}: ${propType};`;
     });
     return `{${props.join('')}\n${pad}}${nullable}`;
@@ -137,20 +137,20 @@ function schemaToTs(schema: any, spec: any, indent = 0, visited = new Set<string
   }
 
   switch (type) {
-    case 'string':  return `string${nullable}`;
+    case 'string': return `string${nullable}`;
     case 'number':
     case 'integer': return `number${nullable}`;
     case 'boolean': return `boolean${nullable}`;
-    default:        return `unknown${nullable}`;
+    default: return `unknown${nullable}`;
   }
 }
 
-// ─── Schemas por operação ─────────────────────────────────────────────────────
+// ─── Extract schemas grouped by operation ─────────────────────────────────────
 
 function getSchemasForOp(op: any) {
   const raw = op._raw;
 
-  // requestBody — suporta multipart/form-data e outros content-types além de JSON
+  // requestBody — resolves multiplexing content types like FormData & Json buffers natively
   const reqContent =
     raw?.requestBody?.content?.['application/json']?.schema ??
     raw?.requestBody?.content?.['multipart/form-data']?.schema ??
@@ -158,23 +158,23 @@ function getSchemasForOp(op: any) {
     raw?.requestBody?.content?.['*/*']?.schema ??
     null;
 
-  // response — usa helper robusto que cobre qualquer 2xx e wildcard '2XX'
+  // response schema extraction using the robust 2xx helper
   const resContent = getSuccessResponseSchema(raw?.responses ?? {});
 
-  // query params
+  // query parameters grouping mapped into standard Object schema shape
   const queryParams = (raw?.parameters ?? []).filter((p: any) => p.in === 'query');
   const querySchema =
     queryParams.length > 0
       ? {
-          type: 'object',
-          properties: Object.fromEntries(
-            queryParams.map((p: any) => [
-              p.name,
-              { ...(p.schema ?? { type: 'string' }), description: p.description },
-            ]),
-          ),
-          required: queryParams.filter((p: any) => p.required).map((p: any) => p.name),
-        }
+        type: 'object',
+        properties: Object.fromEntries(
+          queryParams.map((p: any) => [
+            p.name,
+            { ...(p.schema ?? { type: 'string' }), description: p.description },
+          ]),
+        ),
+        required: queryParams.filter((p: any) => p.required).map((p: any) => p.name),
+      }
       : null;
 
   return { reqSchema: reqContent, resSchema: resContent, querySchema };
@@ -188,12 +188,12 @@ function pascal(str: string) {
 
 function getAliases(op: any) {
   const name = operationIdToMethodName(op.operationId);
-  const P    = pascal(name);
+  const P = pascal(name);
   return {
-    methodName:    name,
+    methodName: name,
     aliasResponse: `${P}Response`,
-    aliasBody:     op.hasBody        ? `${P}Body`  : null,
-    aliasParams:   op.hasQueryParams ? `${P}Params` : null,
+    aliasBody: op.hasBody ? `${P}Body` : null,
+    aliasParams: op.hasQueryParams ? `${P}Params` : null,
   };
 }
 
@@ -213,7 +213,7 @@ function renderTypesFile({ operations, spec }: any) {
     }
   }
 
-  const lines = ['// Auto-generated by kubb-plugin-nextjs-routes — do not edit manually'];
+  const lines = ['// Auto-generated by nextjs-openapi-codegen — do not edit manually'];
 
   if (allRefs.size > 0) {
     lines.push('', '// ─── Shared schemas ─────────────────────────────────────────────────────────');
@@ -258,13 +258,13 @@ function renderServiceFile({ varName, operations, apiClientPath }: any) {
   for (const op of operations) {
     const { aliasResponse, aliasBody, aliasParams } = getAliases(op);
     typeNames.push(aliasResponse);
-    if (aliasBody)   typeNames.push(aliasBody);
+    if (aliasBody) typeNames.push(aliasBody);
     if (aliasParams) typeNames.push(aliasParams);
   }
 
   const methods = operations.map((op: any) => renderMethod(op)).join('\n\n');
 
-  return `// Auto-generated by kubb-plugin-nextjs-routes — do not edit manually
+  return `// Auto-generated by nextjs-openapi-codegen — do not edit manually
 import apiClient from '${apiClientPath}';
 import type { ${typeNames.join(', ')} } from './types';
 
@@ -283,21 +283,23 @@ function renderMethod(op: any) {
   const realHasQuery = !!querySchema;
 
   const nextPath = toNextPath(path);
-  const urlExpr  = pathParams.reduce(
+  const urlExpr = pathParams.reduce(
     (u: string, p: string) => u.replace(`[${p}]`, `\${${p}}`),
     nextPath,
   );
+
+  // const urlStr = pathParams.length > 0 ?\`\`/api\${urlExpr}\`\` : \`'/api\${urlExpr}'\`;
   const urlStr = pathParams.length > 0 ? `\`/api${urlExpr}\`` : `'/api${urlExpr}'`;
 
   const args: string[] = [];
   pathParams.forEach((p: string) => args.push(`${p}: string`));
-  if (aliasBody)                   args.push(`body: ${aliasBody}`);
+  if (aliasBody) args.push(`body: ${aliasBody}`);
   if (aliasParams && realHasQuery) args.push(`params: ${aliasParams} = {} as ${aliasParams}`);
 
   const callArgs = [urlStr];
-  if (hasBody && method === 'DELETE') callArgs.push('{ data: body }'); // axios DELETE usa { data }
-  else if (hasBody)                   callArgs.push('body');
-  if (realHasQuery && !hasBody)       callArgs.push('{ params }');
+  if (hasBody && method === 'DELETE') callArgs.push('{ data: body }'); // Axios forces { data } on DELETE bodies
+  else if (hasBody) callArgs.push('body');
+  if (realHasQuery && !hasBody) callArgs.push('{ params }');
 
   const comment = summary ? `  /** ${summary} */\n` : '';
 
@@ -316,7 +318,7 @@ export async function generateServices({
   apiClientPath,
   cwd,
 }: any) {
-  const parsed     = typeof spec === 'string' ? await fetchSpec(spec) : spec;
+  const parsed = typeof spec === 'string' ? await fetchSpec(spec) : spec;
   const operations = extractOperations(parsed, { stripPathPrefix });
 
   const byTag = new Map<string, any[]>();
@@ -329,7 +331,7 @@ export async function generateServices({
   const files: string[] = [];
 
   for (const [tag, ops] of byTag) {
-    const slug    = slugifyTag(tag);
+    const slug = slugifyTag(tag);
     const varName =
       slug
         .split('-')
